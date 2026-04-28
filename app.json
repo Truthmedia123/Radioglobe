@@ -1,30 +1,132 @@
 {
   "expo": {
-    "name": "radio-app",
-    "slug": "radio-app",
+    "name": "RadioGlobe",
+    "slug": "radio-globe",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "radioglobe",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.radioglobe.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "radioglobe"
+            ]
+          }
+        ],
+        "FirebaseDynamicLinksCustomDomains": [
+          "https://radioglobe.page.link"
+        ],
+        "NSLocationWhenInUseUsageDescription": "RadioGlobe uses your location to show local radio stations and weather information.",
+        "NSMicrophoneUsageDescription": "RadioGlobe uses the microphone for song identification and audio recording features.",
+        "UIBackgroundModes": [
+          "audio",
+          "fetch",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": [
+        "applinks:radioglobe.app"
+      ]
     },
     "android": {
+      "package": "com.radioglobe.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "radioglobe",
+              "host": "*"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "radioglobe.app",
+              "pathPrefix": "/station/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "extraMavenRepos": [],
+            "extraProguardRules": "",
+            "nativeModuleRedirects": {
+              "TrackPlayerModule": "MusicModule"
+            }
+          }
+        }
+      ],
+      "expo-font",
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow RadioGlobe to use your location to find local stations."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow RadioGlobe to access your microphone for song identification."
+        }
+      ],
+      "expo-dev-client",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "acc92858-0fc8-4d6a-9a6b-1e7ef68623f3"
+      }
+    },
+    "owner": "truthmedianetworks"
   }
 }

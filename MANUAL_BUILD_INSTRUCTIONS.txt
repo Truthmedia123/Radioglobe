@@ -1,0 +1,81 @@
+============================================
+RadioGlobe Development Build - Manual Instructions
+============================================
+
+Since automated login isn't possible, please follow these steps manually:
+
+STEP 1: OPEN COMMAND PROMPT
+----------------------------
+1. Press Windows Key + R
+2. Type "cmd" and press Enter
+3. Navigate to the radio-app directory:
+   cd "C:\Users\NOEL FERNANDES\Desktop\Radio 23rd april\radio-app"
+
+STEP 2: LOGIN TO EXPO
+---------------------
+Run this command and follow the prompts:
+   eas login
+
+You will be asked for:
+   - Email or username (your Expo account)
+   - Password
+
+If you don't have an Expo account:
+   1. Go to https://expo.dev
+   2. Click "Sign up" and create a free account
+   3. Return to command prompt and run `eas login`
+
+STEP 3: BUILD ANDROID DEVELOPMENT CLIENT
+-----------------------------------------
+Run this command:
+   eas build --platform android --profile development
+
+BUILD PROCESS:
+- This will take 15-20 minutes
+- You'll see progress percentage and logs
+- Build runs on Expo's servers (cloud build)
+
+STEP 4: INSTALL DEVELOPMENT CLIENT
+-----------------------------------
+When build completes, you'll see:
+   1. A QR CODE - Scan with your phone camera
+   2. INSTALL URL - Open in browser on your phone
+
+On Android phone:
+   - Enable "Install from unknown sources" if prompted
+   - Install the APK file
+
+STEP 5: START DEV SERVER AND TEST
+----------------------------------
+1. In command prompt, run:
+   npx expo start --dev-client
+
+2. Metro bundler starts with a QR code
+
+3. On your phone:
+   - Open the RadioGlobe Dev Client (just installed)
+   - Tap "Scan QR Code" or use camera to scan Metro QR code
+   - App will load with full native features
+
+EXPECTED RESULTS:
+- ✅ CarPlay features enabled (no more safe require)
+- ✅ Chromecast discovery working
+- ✅ Push notifications fully functional
+- ✅ All Expo Go guards removed
+- ✅ Native modules available
+
+TROUBLESHOOTING:
+- If build fails: Check internet connection and Expo account status
+- If QR code doesn't work: Use `npx expo start --dev-client --tunnel`
+- If app doesn't install: Enable "Install from unknown sources" in Android settings
+
+FOR iOS BUILD (Optional):
+   eas build --platform ios --profile development
+   (Requires Apple Developer account)
+
+============================================
+SUPPORT:
+- Expo Docs: https://docs.expo.dev
+- EAS Build: https://docs.expo.dev/build/introduction/
+- RadioGlobe Launch Checklist: LAUNCH_CHECKLIST.md
+============================================
