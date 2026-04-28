@@ -1,56 +1,72 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
-# dependencies
+# Dependencies
 node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
+venv/
+.venv/
 .env
-.env.production
+.env.local
+.env.*
 
-# typescript
-*.tsbuildinfo
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
 
-# generated native folders
-/ios
-/android
+# Editors
+.vscode/
+.idea/
 
-# Android specific (additional)
-android/app/build/
-android/.gradle/
-android/build/
-android/local.properties
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
-# iOS specific (additional)
-ios/Pods/
-ios/build/
+# Build directories
+dist/
+build/
+target/
+.gradle/
 
-# Other
-*.tsbuildinfo
+# Python specific
+.mypy_cache/
+.pytest_cache/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
