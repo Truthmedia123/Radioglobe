@@ -21,6 +21,7 @@ import { TriDial } from './src/navigation/TriDial';
 import { DiscoveryScreen } from './src/screens/DiscoveryScreen';
 import { PlayerScreen } from './src/screens/PlayerScreen';
 import { ArchiveScreen } from './src/screens/ArchiveScreen';
+import { PodcastScreen } from './src/screens/PodcastScreen';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -108,6 +109,7 @@ export default function App() {
         discoveryScreen={<DiscoveryScreen />}
         playerScreen={<PlayerScreen />}
         archiveScreen={<ArchiveScreen />}
+        podcastScreen={<PodcastScreen />}
       />
     </View>
   );

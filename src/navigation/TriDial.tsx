@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Animated, Dimensions, Text } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useNavigationStore } from '../store/navigationStore';
 import { GlobeIcon } from '../components/icons/GlobeIcon';
@@ -13,16 +13,19 @@ interface TriDialProps {
     discoveryScreen: React.ReactNode;
     playerScreen: React.ReactNode;
     archiveScreen: React.ReactNode;
+    podcastScreen: React.ReactNode;
 }
 
 export const TriDial: React.FC<TriDialProps> = ({
     discoveryScreen,
     playerScreen,
     archiveScreen,
+    podcastScreen,
 }) => {
     const { activeTab, setActiveTab } = useNavigationStore();
     const pagerRef = useRef<PagerView>(null);
     const glowAnimations = [
+        useRef(new Animated.Value(0)).current,
         useRef(new Animated.Value(0)).current,
         useRef(new Animated.Value(0)).current,
         useRef(new Animated.Value(0)).current,
@@ -82,10 +85,11 @@ export const TriDial: React.FC<TriDialProps> = ({
                 <View key="1">{discoveryScreen}</View>
                 <View key="2">{playerScreen}</View>
                 <View key="3">{archiveScreen}</View>
+                <View key="4">{podcastScreen}</View>
             </PagerView>
 
             <View style={styles.tabBar}>
-                {['Discovery', 'Player', 'Archive'].map((label, index) => (
+                {['Discovery', 'Player', 'Archive', 'Podcasts'].map((label, index) => (
                     <TouchableOpacity
                         key={label}
                         style={styles.tabButton}
@@ -133,6 +137,20 @@ export const TriDial: React.FC<TriDialProps> = ({
                                         ]}
                                     />
                                     <ArchiveIcon active={activeTab === index} />
+                                </>
+                            )}
+                            {index === 3 && (
+                                <>
+                                    <Animated.View
+                                        style={[
+                                            styles.glow,
+                                            {
+                                                opacity: opacityInterpolations[index],
+                                                backgroundColor: COLORS.primary,
+                                            },
+                                        ]}
+                                    />
+                                    <Text style={{fontSize: 24}}>🎧</Text>
                                 </>
                             )}
                         </View>
