@@ -33,12 +33,12 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({ podcast, onPress }) =>
                 contentFit="cover"
                 transition={200}
             />
-            
+
             <View style={styles.contentContainer}>
                 <Text style={styles.title} numberOfLines={1}>
                     {podcast.title}
                 </Text>
-                
+
                 {podcast.author ? (
                     <Text style={styles.author} numberOfLines={1}>
                         {podcast.author}
@@ -51,7 +51,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({ podcast, onPress }) =>
                             {podcast.source.toUpperCase()}
                         </Text>
                     </View>
-                    
+
                     {podcast.episodeCount !== undefined && (
                         <Text style={styles.episodeCount}>
                             {podcast.episodeCount} eps
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     author: {
         fontSize: 15,
         fontFamily: 'Inter_400Regular',
-        color: COLORS.textSecondary,
+        color: COLORS.secondaryText,
         marginBottom: 8,
     },
     footerRow: {
@@ -112,6 +112,6 @@ const styles = StyleSheet.create({
     episodeCount: {
         fontSize: 12,
         fontFamily: 'JetBrainsMono_400Regular',
-        color: COLORS.textSecondary,
+        color: COLORS.secondaryText,
     },
 });

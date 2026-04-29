@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Station } from '../api/radioBrowser';
+import { PodcastEpisode } from '../types/podcast';
 
 export type NetworkType = 'wifi' | 'cellular' | 'ethernet' | 'unknown' | 'none';
 export type StreamQuality = 'low' | 'medium' | 'high' | 'adaptive';
@@ -14,6 +15,7 @@ export interface SleepTimerState {
 
 interface PlayerState {
   currentStation: Station | null;
+  currentPodcastEpisode: PodcastEpisode | null;
   isPlaying: boolean;
   isLoading: boolean;
   volume: number;
@@ -23,6 +25,7 @@ interface PlayerState {
   availableStreams: string[]; // Alternative stream URLs for current station
   sleepTimer: SleepTimerState;
   setCurrentStation: (station: Station | null) => void;
+  setCurrentPodcastEpisode: (episode: PodcastEpisode | null) => void;
   setIsPlaying: (playing: boolean) => void;
   setIsLoading: (loading: boolean) => void;
   setVolume: (volume: number) => void;
@@ -35,6 +38,7 @@ interface PlayerState {
 
 export const usePlayerStore = create<PlayerState>((set) => ({
   currentStation: null,
+  currentPodcastEpisode: null,
   isPlaying: false,
   isLoading: false,
   volume: 1.0,
@@ -50,6 +54,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
     withNatureSounds: false,
   },
   setCurrentStation: (station) => set({ currentStation: station }),
+  setCurrentPodcastEpisode: (episode) => set({ currentPodcastEpisode: episode }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setVolume: (volume) => set({ volume }),

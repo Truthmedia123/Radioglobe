@@ -166,6 +166,37 @@ class AudioService extends EventEmitter {
   }
 
   /**
+   * Skip forward by specified seconds (positive) or backward (negative)
+   */
+  async skipBy(seconds: number) {
+    if (!this.sound) return;
+    try {
+      const status = await this.sound.getStatusAsync();
+      if (status.isLoaded && status.positionMillis !== undefined) {
+        const newPosition = Math.max(0, status.positionMillis + seconds * 1000);
+        await this.sound.setPositionAsync(newPosition);
+        console.log(`Skipped ${seconds}s to ${newPosition}ms`);
+      }
+    } catch (error) {
+      console.error('Error skipping:', error);
+    }
+  }
+
+  /**
+   * Skip forward 15 seconds
+   */
+  async skipForward() {
+    await this.skipBy(15);
+  }
+
+  /**
+   * Skip backward 15 seconds
+   */
+  async skipBackward() {
+    await this.skipBy(-15);
+  }
+
+  /**
    * Start dead stream detection watchdog
    */
   private startDeadStreamWatchdog() {

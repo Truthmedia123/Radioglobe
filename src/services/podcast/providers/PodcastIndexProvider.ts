@@ -1,4 +1,4 @@
-import PodcastIndexClient from '@mj-kiwi/podcast-index-api';
+import { PodcastIndexClient } from '@mj-kiwi/podcast-index-api';
 import { PodcastSearchResult } from '../../../types/podcast';
 
 export class PodcastIndexProvider {
@@ -7,7 +7,10 @@ export class PodcastIndexProvider {
     constructor(apiKey: string, apiSecret: string) {
         // Only instantiate if keys are provided to avoid crashes
         if (apiKey && apiSecret && apiKey !== 'YOUR_API_KEY') {
-            this.client = new PodcastIndexClient(apiKey, apiSecret);
+            this.client = new PodcastIndexClient({
+                authKey: apiKey,
+                secretKey: apiSecret
+            });
         }
     }
 
@@ -18,8 +21,8 @@ export class PodcastIndexProvider {
         }
 
         try {
-            const response = await this.client.search(query, { limit });
-            
+            const response = await this.client.searchPodcasts({ q: query, max: limit });
+
             if (!response || !response.feeds || !Array.isArray(response.feeds)) {
                 return [];
             }

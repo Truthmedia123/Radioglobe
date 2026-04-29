@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, FlatList, ActivityIndicator, Modal } from 'react-native';
 import { PodcastCard } from '../components/PodcastCard';
 import { searchAllProviders } from '../services/podcast/searchOrchestrator';
 import { PodcastSearchResult } from '../types/podcast';
 import { COLORS } from '../constants/theme';
+import { usePodcastStore } from '../store/podcastStore';
+import { PodcastDetailScreen } from './PodcastDetailScreen';
 
 export const PodcastScreen: React.FC = () => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PodcastSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState('');
+    const { selectedFeedUrl, setSelectedFeedUrl } = usePodcastStore();
 
     // Debounce the query
     useEffect(() => {
@@ -45,7 +48,11 @@ export const PodcastScreen: React.FC = () => {
 
     const handleCardPress = (podcast: PodcastSearchResult) => {
         console.log('Podcast pressed:', podcast.title);
-        // Will navigate to detail/episode list later
+        setSelectedFeedUrl(podcast.feedUrl);
+    };
+
+    const handleCloseDetail = () => {
+        setSelectedFeedUrl(null);
     };
 
     return (
@@ -54,7 +61,7 @@ export const PodcastScreen: React.FC = () => {
                 <TextInput
                     style={styles.searchInput}
                     placeholder="Search podcasts..."
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={COLORS.secondaryText}
                     value={query}
                     onChangeText={setQuery}
                     autoCapitalize="none"
@@ -81,6 +88,20 @@ export const PodcastScreen: React.FC = () => {
                     <Text style={styles.emptyText}>No podcasts found</Text>
                 </View>
             ) : null}
+
+            <Modal
+                visible={!!selectedFeedUrl}
+                animationType="slide"
+                presentationStyle="fullScreen"
+                onRequestClose={handleCloseDetail}
+            >
+                {selectedFeedUrl && (
+                    <PodcastDetailScreen
+                        feedUrl={selectedFeedUrl}
+                        onClose={handleCloseDetail}
+                    />
+                )}
+            </Modal>
         </View>
     );
 };
@@ -118,6 +139,6 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 16,
         fontFamily: 'Inter_400Regular',
-        color: COLORS.textSecondary,
+        color: COLORS.secondaryText,
     },
 });
