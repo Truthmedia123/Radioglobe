@@ -54,3 +54,6 @@ ios/build/
 
 # Other
 *.tsbuildinfo
+expo-*.log
+.chrome-profile*/
+.edge-profile/

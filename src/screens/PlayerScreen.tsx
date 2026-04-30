@@ -1,673 +1,650 @@
 import React, { useEffect, useState } from 'react';
 import {
-    StyleSheet,
-    View,
-    Text,
-    TouchableOpacity,
-    SafeAreaView,
-    ActivityIndicator,
-    ScrollView
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { audioService } from '../services/audioService';
-import { usePlayerStore } from '../store/playerStore';
-import { fetchTopStations, Station } from '../api/radioBrowser';
-import { COLORS, TYPOGRAPHY } from '../constants/theme';
-import { useNavigationStore } from '../store/navigationStore';
-import { useStationTime } from '../hooks/useStationTime';
-import { ClockFace } from '../components/ClockFace';
-import { BufferBar } from '../components/BufferBar';
-import { SongIdentifier } from '../components/SongIdentifier';
-import { QualityIndicator } from '../components/QualityIndicator';
-import { useNetworkMonitor } from '../services/networkMonitor';
-import { SleepTimerButton } from '../components/SleepTimerButton';
-import { ShareButton } from '../components/ShareButton';
+import { Bell, Bug, DownloadCloud, Mic2, Pause, Play, Radio, RotateCcw, RotateCw, Settings2, Share2, Users, Volume2 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { AUDIO_EVENTS, audioService } from '../services/audioService';
 import { AlarmModal } from '../components/AlarmModal';
+import { BufferBar } from '../components/BufferBar';
+import { ClockFace } from '../components/ClockFace';
 import { EQModal } from '../components/EQModal';
+import { QualityIndicator } from '../components/QualityIndicator';
 import { ScheduleRecordingModal } from '../components/ScheduleRecordingModal';
-import { useRecordingStore } from '../store/recordingStore';
+import { SleepTimerButton } from '../components/SleepTimerButton';
+import { SongIdentifier } from '../components/SongIdentifier';
+import { fetchTopStations, Station } from '../api/radioBrowser';
+import { adAwareService } from '../services/adAwareService';
+import { foundSoundService } from '../services/foundSoundService';
+import { listeningRoomService } from '../services/listeningRoomService';
+import { useHaptics } from '../services/hapticService';
+import { useNetworkMonitor } from '../services/networkMonitor';
+import { COLORS, RADIUS, TYPOGRAPHY } from '../constants/theme';
 import { useAlarmStore } from '../store/alarmStore';
 import { useEQStore } from '../store/eqStore';
-// Week 11-12 Features
-import { VintageDial } from '../components/VintageDial';
-import { useHaptics } from '../services/hapticService';
-import { listeningRoomService } from '../services/listeningRoomService';
-import { foundSoundService } from '../services/foundSoundService';
-import { adAwareService } from '../services/adAwareService';
-import { useAccessibility } from '../services/accessibilityService';
-// Debugging Feature
+import { useNavigationStore } from '../store/navigationStore';
+import { usePlayerStore } from '../store/playerStore';
+import { usePodcastStore } from '../store/podcastStore';
+import { useRecordingStore } from '../store/recordingStore';
+import { useStationTime } from '../hooks/useStationTime';
 import { DevConnectScreen } from './DevConnectScreen';
 
 export const PlayerScreen: React.FC = () => {
-    const { currentStation, isPlaying, isLoading, setCurrentStation } = usePlayerStore();
-    const { setActiveTab } = useNavigationStore();
-    const { isRecordingModalOpen, setRecordingModalOpen } = useRecordingStore();
-    const { isAlarmModalOpen, setAlarmModalOpen } = useAlarmStore();
-    const { isEQModalOpen, setEQModalOpen } = useEQStore();
+  const { currentStation, currentPodcastEpisode, isPlaying, isLoading, setCurrentStation } = usePlayerStore();
+  const { setActiveTab } = useNavigationStore();
+  const { isRecordingModalOpen, setRecordingModalOpen } = useRecordingStore();
+  const { isAlarmModalOpen, setAlarmModalOpen } = useAlarmStore();
+  const { isEQModalOpen, setEQModalOpen } = useEQStore();
+  const { stationChange, recordingToggle, soundClipCaptured, adBreakDetected } = useHaptics();
 
-    const [stations, setStations] = useState<Station[]>([]);
-    const [loadingStations, setLoadingStations] = useState(true);
-    // Week 11-12 State
-    const [isRecordingClip, setIsRecordingClip] = useState(false);
-    const [adBreakActive, setAdBreakActive] = useState(false);
-    const [listeningRooms, setListeningRooms] = useState<any[]>([]);
-    // Debugging Feature State
-    const [isDevConnectVisible, setIsDevConnectVisible] = useState(false);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [loadingStations, setLoadingStations] = useState(true);
+  const [isRecordingClip, setIsRecordingClip] = useState(false);
+  const [adBreakActive, setAdBreakActive] = useState(false);
+  const [isDevConnectVisible, setIsDevConnectVisible] = useState(false);
+  const [showResumeToast, setShowResumeToast] = useState(false);
+  const [resumePosition, setResumePosition] = useState(0);
+  const [playbackPosition, setPlaybackPosition] = useState(0);
+  const [playbackDuration, setPlaybackDuration] = useState(0);
 
-    // Initialize network monitoring
-    useNetworkMonitor();
-    // Week 11-12 Hooks
-    const { stationChange, recordingToggle, soundClipCaptured, adBreakDetected } = useHaptics();
-    const { getButtonProps } = useAccessibility();
+  useNetworkMonitor();
+  const stationTime = useStationTime(currentStation?.countrycode);
 
-    const stationTime = useStationTime(currentStation?.countrycode);
+  useEffect(() => {
+    loadStations();
+    audioService.init();
 
-    useEffect(() => {
-        loadStations();
-        // Initialize audio service
-        audioService.init();
-
-        // Cleanup on unmount
-        return () => {
-            audioService.cleanup();
-        };
-    }, []);
-
-    const loadStations = async () => {
-        setLoadingStations(true);
-        const data = await fetchTopStations(10);
-        setStations(data);
-        setLoadingStations(false);
+    const onBufferUpdate = (data: any) => {
+      if (data.positionMillis !== undefined) setPlaybackPosition(data.positionMillis);
+      if (data.durationMillis !== undefined) setPlaybackDuration(data.durationMillis);
     };
 
-    const handlePlayStation = async (station: Station) => {
-        if (currentStation?.stationuuid === station.stationuuid && isPlaying) {
-            await audioService.pause();
-        } else {
-            setCurrentStation(station);
-            // Add haptic feedback for station change
-            stationChange();
-            // Wait a moment for state to update, then play
-            setTimeout(() => {
-                audioService.play(station.url_resolved);
-            }, 100);
-        }
+    audioService.on(AUDIO_EVENTS.BUFFER_UPDATE, onBufferUpdate);
+    return () => {
+      audioService.off(AUDIO_EVENTS.BUFFER_UPDATE, onBufferUpdate);
     };
+  }, []);
 
-    const handlePlayPause = async () => {
-        if (isPlaying) {
-            await audioService.pause();
-        } else if (currentStation) {
-            await audioService.resume();
-        }
-    };
+  useEffect(() => {
+    if (!currentPodcastEpisode) {
+      setShowResumeToast(false);
+      return;
+    }
 
-    const handleRecordPress = () => {
-        setRecordingModalOpen(true);
-    };
+    const progress = usePodcastStore.getState().getProgress(currentPodcastEpisode.guid);
+    if (progress && progress.positionMillis > 0 && progress.positionMillis < progress.durationMillis * 0.95) {
+      setResumePosition(progress.positionMillis);
+      setShowResumeToast(true);
+      const timer = setTimeout(() => setShowResumeToast(false), 10000);
+      return () => clearTimeout(timer);
+    }
 
-    const handleAlarmPress = () => {
-        setAlarmModalOpen(true);
-    };
+    setShowResumeToast(false);
+  }, [currentPodcastEpisode]);
 
-    const handleEQPress = () => {
-        setEQModalOpen(true);
-    };
+  const loadStations = async () => {
+    setLoadingStations(true);
+    const data = await fetchTopStations(12);
+    setStations(data);
+    setLoadingStations(false);
+  };
 
-    // Week 11-12 Feature Handlers
-    const handleFoundSoundPress = async () => {
-        if (!currentStation) return;
+  const playStation = async (station: Station) => {
+    if (currentStation?.stationuuid === station.stationuuid && isPlaying) {
+      await audioService.pause();
+      return;
+    }
 
-        recordingToggle();
-        setIsRecordingClip(true);
+    setCurrentStation(station);
+    stationChange();
+    await audioService.play(station.url_resolved || station.url);
+  };
 
-        try {
-            // Start recording a 30-second clip
-            const success = await foundSoundService.startRecording();
-            if (success) {
-                // Simulate recording for 30 seconds
-                setTimeout(async () => {
-                    const clip = await foundSoundService.stopRecording();
-                    if (clip) {
-                        soundClipCaptured();
-                        // Show success message
-                        console.log('Found Sound clip recorded:', clip);
-                    }
-                    setIsRecordingClip(false);
-                }, 30000); // 30 seconds
-            }
-        } catch (error) {
-            console.error('Failed to record clip:', error);
-            setIsRecordingClip(false);
-        }
-    };
+  const handlePlayPause = async () => {
+    if (isPlaying) {
+      await audioService.pause();
+    } else if (currentStation || currentPodcastEpisode) {
+      await audioService.resume();
+    } else if (stations[0]) {
+      await playStation(stations[0]);
+    } else {
+      setActiveTab(0);
+    }
+  };
 
-    const handleAdBreakPress = () => {
-        if (adBreakActive) {
-            // Stop ad break
-            adAwareService.stopAdBreak();
-            setAdBreakActive(false);
-        } else {
-            // Start manual ad break
-            adBreakDetected();
-            if (currentStation) {
-                adAwareService.startManualAdBreak(currentStation, 2); // 2 minutes
-            }
-            setAdBreakActive(true);
+  const handleFoundSoundPress = async () => {
+    if (!currentStation || isRecordingClip) return;
+    recordingToggle();
+    setIsRecordingClip(true);
 
-            // Auto-stop after 2 minutes (simulated)
-            setTimeout(() => {
-                adAwareService.stopAdBreak();
-                setAdBreakActive(false);
-            }, 120000);
-        }
-    };
+    try {
+      const success = await foundSoundService.startRecording();
+      if (success) {
+        setTimeout(async () => {
+          const clip = await foundSoundService.stopRecording();
+          if (clip) soundClipCaptured();
+          setIsRecordingClip(false);
+        }, 30000);
+      } else {
+        setIsRecordingClip(false);
+      }
+    } catch (error) {
+      console.error('Failed to record clip:', error);
+      setIsRecordingClip(false);
+    }
+  };
 
-    const handleListeningRoomPress = async () => {
-        if (!currentStation) return;
+  const handleAdBreakPress = () => {
+    if (!currentStation) return;
 
-        try {
-            const rooms = await listeningRoomService.getAvailableRooms();
-            setListeningRooms(rooms);
+    if (adBreakActive) {
+      adAwareService.stopAdBreak();
+      setAdBreakActive(false);
+      return;
+    }
 
-            // For demo, create a room if none exist
-            if (rooms.length === 0) {
-                const room = await listeningRoomService.createRoom(
-                    `Room for ${currentStation.name}`,
-                    currentStation
-                );
-                if (room) {
-                    console.log('Created listening room:', room);
-                }
-            }
-        } catch (error) {
-            console.error('Failed to handle listening rooms:', error);
-        }
-    };
+    adBreakDetected();
+    adAwareService.startManualAdBreak(currentStation, 2);
+    setAdBreakActive(true);
+    setTimeout(() => {
+      adAwareService.stopAdBreak();
+      setAdBreakActive(false);
+    }, 120000);
+  };
 
-    const handleVintageDialChange = (frequency: number) => {
-        // Simulate tuning with haptic feedback
-        stationChange();
-        console.log('Tuned to frequency:', frequency);
-    };
+  const handleListeningRoomPress = async () => {
+    if (!currentStation) return;
+    const rooms = await listeningRoomService.getAvailableRooms();
+    if (rooms.length === 0) {
+      await listeningRoomService.createRoom(`Room for ${currentStation.name}`, currentStation);
+    }
+  };
 
-    // Debugging Feature Handler
-    const handleDevConnectPress = () => {
-        setIsDevConnectVisible(true);
-    };
+  const formatTime = (millis: number) => {
+    if (!millis) return '0:00';
+    const totalSeconds = Math.floor(millis / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-                {/* Buffer Guardian - Shows audio buffer status */}
-                <BufferBar />
+  const progressPercent = playbackDuration > 0 ? Math.min(100, (playbackPosition / playbackDuration) * 100) : 0;
+  const activeTitle = currentPodcastEpisode?.title || currentStation?.name || 'Choose something to play';
+  const activeMeta = currentPodcastEpisode?.podcastTitle || [currentStation?.country, currentStation?.language].filter(Boolean).join('  /  ') || 'Explore stations and podcasts';
 
-                <View style={styles.header}>
-                    <Text style={styles.clock}>17:14</Text>
-                    <View style={styles.titleRow}>
-                        <Text style={styles.title}>RadioWorld</Text>
-                        <TouchableOpacity
-                            style={styles.devButton}
-                            onPress={handleDevConnectPress}
-                            accessibilityLabel="Developer connection"
-                        >
-                            <Text style={styles.devIcon}>⚙️</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <View>
+            <Text style={styles.kicker}>Now Playing</Text>
+            <Text style={styles.screenTitle}>RadioGlobe</Text>
+          </View>
+          <TouchableOpacity style={styles.iconButton} onPress={() => setIsDevConnectVisible(true)}>
+            <Bug size={20} color={COLORS.secondaryText} />
+          </TouchableOpacity>
+        </View>
 
-                <View style={styles.dialContainer}>
-                    <View style={styles.dialRing}>
-                        <Text style={styles.stationName}>
-                            {currentStation ? currentStation.name : 'Select a Station'}
-                        </Text>
+        <View style={styles.nowPlaying}>
+          <View style={styles.artwork}>
+            <View style={styles.artworkOrbit} />
+            <Radio size={54} color={COLORS.text} />
+          </View>
 
-                        {currentStation && (
-                            <View style={styles.timeZoneSection}>
-                                <View style={styles.clockContainer}>
-                                    <ClockFace timeInfo={stationTime} size={100} showDigital={false} />
-                                </View>
-                                <View style={styles.timeZoneInfo}>
-                                    <Text style={styles.timeZoneLabel}>Local time at station</Text>
-                                    <Text style={styles.timeZoneText}>
-                                        {stationTime.isUnknown ? 'Unknown timezone' : stationTime.timeString}
-                                    </Text>
-                                    <Text style={styles.timeZoneDetail}>
-                                        {currentStation.countrycode ? `${currentStation.countrycode} • ${stationTime.timeZone}` : 'Unknown location'}
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
+          <Text style={styles.activeTitle} numberOfLines={3}>{activeTitle}</Text>
+          <Text style={styles.activeMeta} numberOfLines={1}>{activeMeta}</Text>
 
-                        {currentStation && (
-                            <View style={styles.stationMeta}>
-                                <Text style={styles.stationCountry}>{currentStation.country}</Text>
-                                <Text style={styles.stationLanguage}>{currentStation.language}</Text>
-                                <QualityIndicator />
-                            </View>
-                        )}
-                    </View>
-                </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          </View>
+          <View style={styles.progressLabels}>
+            <Text style={styles.progressLabel}>{formatTime(playbackPosition)}</Text>
+            <Text style={styles.progressLabel}>{currentPodcastEpisode ? formatTime(playbackDuration) : 'Live'}</Text>
+          </View>
 
-                <View style={styles.controls}>
-                    <TouchableOpacity
-                        style={styles.playButton}
-                        onPress={handlePlayPause}
-                        disabled={!currentStation}
-                    >
-                        <Text style={styles.playButtonText}>
-                            {isPlaying ? 'PAUSE' : 'PLAY'}
-                        </Text>
-                    </TouchableOpacity>
+          <View style={styles.controls}>
+            {currentPodcastEpisode && (
+              <TouchableOpacity style={styles.secondaryControl} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); audioService.skipBackward(); }}>
+                <RotateCcw size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.playButton} onPress={handlePlayPause} disabled={isLoading}>
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.black} />
+              ) : isPlaying ? (
+                <Pause size={30} color={COLORS.black} fill={COLORS.black} />
+              ) : (
+                <Play size={30} color={COLORS.black} fill={COLORS.black} />
+              )}
+            </TouchableOpacity>
+            {currentPodcastEpisode && (
+              <TouchableOpacity style={styles.secondaryControl} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); audioService.skipForward(); }}>
+                <RotateCw size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-                    {/* AI Song Identifier */}
-                    <SongIdentifier />
-                </View>
+          {showResumeToast && currentPodcastEpisode && (
+            <View style={styles.resumeToast}>
+              <Text style={styles.resumeText}>Resume from {formatTime(resumePosition)}</Text>
+              <View style={styles.resumeActions}>
+                <TouchableOpacity style={styles.resumeButton} onPress={() => { audioService.seekTo(resumePosition); setShowResumeToast(false); }}>
+                  <Text style={styles.resumeButtonText}>Resume</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.resumeGhost} onPress={() => { audioService.seekTo(0); setShowResumeToast(false); }}>
+                  <Text style={styles.resumeGhostText}>Restart</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
 
-                {/* Utility Buttons */}
-                <View style={styles.utilityButtons}>
-                    <TouchableOpacity style={styles.utilityButton} onPress={handleRecordPress}>
-                        <Text style={styles.utilityIcon}>⏺️</Text>
-                        <Text style={styles.utilityLabel}>Record</Text>
-                    </TouchableOpacity>
+        <BufferBar />
 
-                    <SleepTimerButton />
+        {!currentPodcastEpisode && currentStation && (
+          <View style={styles.stationPanel}>
+            <ClockFace timeInfo={stationTime} size={84} showDigital={false} />
+            <View style={styles.stationPanelCopy}>
+              <Text style={styles.panelLabel}>Station local time</Text>
+              <Text style={styles.panelTitle}>{stationTime.isUnknown ? 'Unknown timezone' : stationTime.timeString}</Text>
+              <Text style={styles.panelMeta}>{currentStation.countrycode ? `${currentStation.countrycode}  /  ${stationTime.timeZone}` : 'Location unavailable'}</Text>
+              <QualityIndicator />
+            </View>
+          </View>
+        )}
 
-                    <TouchableOpacity style={styles.utilityButton} onPress={handleAlarmPress}>
-                        <Text style={styles.utilityIcon}>⏰</Text>
-                        <Text style={styles.utilityLabel}>Alarm</Text>
-                    </TouchableOpacity>
+        <View style={styles.toolGrid}>
+          <ToolButton label="Record" Icon={Mic2} onPress={() => setRecordingModalOpen(true)} />
+          <ToolButton label="Alarm" Icon={Bell} onPress={() => setAlarmModalOpen(true)} />
+          <ToolButton label="EQ" Icon={Settings2} onPress={() => setEQModalOpen(true)} />
+          <ToolButton label={adBreakActive ? 'Ad break' : 'Ad aware'} Icon={Volume2} onPress={handleAdBreakPress} disabled={!currentStation} active={adBreakActive} />
+          <ToolButton label={isRecordingClip ? 'Capturing' : 'Found sound'} Icon={DownloadCloud} onPress={handleFoundSoundPress} disabled={!currentStation || isRecordingClip} active={isRecordingClip} />
+          <ToolButton label="Rooms" Icon={Users} onPress={handleListeningRoomPress} disabled={!currentStation} />
+          <ToolButton label="Share" Icon={Share2} onPress={() => console.log('Share action')} disabled={!currentStation} />
+          <View style={styles.sleepWrap}>
+            <SleepTimerButton />
+          </View>
+        </View>
 
-                    <TouchableOpacity style={styles.utilityButton} onPress={handleEQPress}>
-                        <Text style={styles.utilityIcon}>🎛️</Text>
-                        <Text style={styles.utilityLabel}>EQ</Text>
-                    </TouchableOpacity>
+        {!currentPodcastEpisode && <SongIdentifier />}
 
-                    {currentStation && (
-                        <ShareButton station={currentStation} compact={true} />
-                    )}
-                </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Trending Stations</Text>
+          <TouchableOpacity onPress={() => setActiveTab(0)}>
+            <Text style={styles.sectionAction}>Explore</Text>
+          </TouchableOpacity>
+        </View>
 
-                {/* Week 11-12 Feature Buttons */}
-                <View style={styles.weekFeaturesContainer}>
-                    <Text style={styles.weekFeaturesTitle}>Week 11-12 Features</Text>
-                    <View style={styles.weekFeaturesGrid}>
-                        {/* Found Sound Archive */}
-                        <TouchableOpacity
-                            style={[
-                                styles.featureButton,
-                                isRecordingClip && styles.featureButtonActive
-                            ]}
-                            onPress={handleFoundSoundPress}
-                            disabled={!currentStation || isRecordingClip}
-                        >
-                            <Text style={styles.featureIcon}>🎵</Text>
-                            <Text style={styles.featureLabel}>
-                                {isRecordingClip ? 'Recording...' : 'Found Sound'}
-                            </Text>
-                            <Text style={styles.featureSubtext}>30s clip</Text>
-                        </TouchableOpacity>
+        {loadingStations ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={styles.loader} />
+        ) : (
+          stations.map((station) => (
+            <TouchableOpacity
+              key={station.stationuuid}
+              style={[styles.stationItem, currentStation?.stationuuid === station.stationuuid && styles.activeStationItem]}
+              onPress={() => playStation(station)}
+              activeOpacity={0.84}
+            >
+              <View style={styles.stationIcon}>
+                <Radio size={20} color={currentStation?.stationuuid === station.stationuuid ? COLORS.black : COLORS.secondaryText} />
+              </View>
+              <View style={styles.stationCopy}>
+                <Text style={styles.stationName} numberOfLines={1}>{station.name}</Text>
+                <Text style={styles.stationMeta} numberOfLines={1}>
+                  {[station.country, station.language].filter(Boolean).join('  /  ')}
+                </Text>
+              </View>
+              {currentStation?.stationuuid === station.stationuuid && isPlaying ? (
+                <Pause size={18} color={COLORS.primary} />
+              ) : (
+                <Play size={18} color={COLORS.secondaryText} />
+              )}
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
 
-                        {/* Ad-Aware Listener */}
-                        <TouchableOpacity
-                            style={[
-                                styles.featureButton,
-                                adBreakActive && styles.featureButtonActive
-                            ]}
-                            onPress={handleAdBreakPress}
-                            disabled={!currentStation}
-                        >
-                            <Text style={styles.featureIcon}>🔇</Text>
-                            <Text style={styles.featureLabel}>
-                                {adBreakActive ? 'Ad Break' : 'Ad Aware'}
-                            </Text>
-                            <Text style={styles.featureSubtext}>Volume -50%</Text>
-                        </TouchableOpacity>
-
-                        {/* Listening Rooms */}
-                        <TouchableOpacity
-                            style={styles.featureButton}
-                            onPress={handleListeningRoomPress}
-                            disabled={!currentStation}
-                        >
-                            <Text style={styles.featureIcon}>👥</Text>
-                            <Text style={styles.featureLabel}>Rooms</Text>
-                            <Text style={styles.featureSubtext}>Social listening</Text>
-                        </TouchableOpacity>
-
-                        {/* Vintage Dial Visualizer */}
-                        <TouchableOpacity
-                            style={styles.featureButton}
-                            onPress={() => console.log('Open visualizer')}
-                        >
-                            <Text style={styles.featureIcon}>📻</Text>
-                            <Text style={styles.featureLabel}>Visualizer</Text>
-                            <Text style={styles.featureSubtext}>FM Dial</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={styles.stationsList}>
-                    <Text style={[styles.sectionTitle, { color: COLORS.secondaryText }]}>
-                        Top Stations
-                    </Text>
-                    {loadingStations ? (
-                        <ActivityIndicator size="large" color={COLORS.primary} style={styles.loader} />
-                    ) : (
-                        stations.map(station => (
-                            <TouchableOpacity
-                                key={station.stationuuid}
-                                style={[
-                                    styles.stationItem,
-                                    currentStation?.stationuuid === station.stationuuid && styles.activeStationItem
-                                ]}
-                                onPress={() => handlePlayStation(station)}
-                            >
-                                <View style={styles.stationInfo}>
-                                    <Text style={styles.stationItemText} numberOfLines={1}>
-                                        {station.name}
-                                    </Text>
-                                    <Text style={styles.stationSubtext} numberOfLines={1}>
-                                        {station.country} • {station.language}
-                                    </Text>
-                                </View>
-                                <View style={styles.stationIndicators}>
-                                    {currentStation?.stationuuid === station.stationuuid && isPlaying && (
-                                        <ActivityIndicator size="small" color={COLORS.primary} />
-                                    )}
-                                    {currentStation?.stationuuid === station.stationuuid && isLoading && (
-                                        <ActivityIndicator size="small" color={COLORS.record} />
-                                    )}
-                                    <ShareButton station={station} compact={true} />
-                                </View>
-                            </TouchableOpacity>
-                        ))
-                    )}
-                </View>
-            </ScrollView>
-
-            {/* Modals */}
-            <ScheduleRecordingModal
-                visible={isRecordingModalOpen}
-                onClose={() => setRecordingModalOpen(false)}
-                station={currentStation || undefined}
-            />
-            <AlarmModal
-                visible={isAlarmModalOpen}
-                onClose={() => setAlarmModalOpen(false)}
-                station={currentStation || undefined}
-            />
-            <EQModal
-                visible={isEQModalOpen}
-                onClose={() => setEQModalOpen(false)}
-            />
-            {/* Debugging Feature Modal */}
-            <DevConnectScreen
-                visible={isDevConnectVisible}
-                onClose={() => setIsDevConnectVisible(false)}
-            />
-        </SafeAreaView>
-    );
+      <ScheduleRecordingModal
+        visible={isRecordingModalOpen}
+        onClose={() => setRecordingModalOpen(false)}
+        station={currentStation || undefined}
+      />
+      <AlarmModal
+        visible={isAlarmModalOpen}
+        onClose={() => setAlarmModalOpen(false)}
+        station={currentStation || undefined}
+      />
+      <EQModal visible={isEQModalOpen} onClose={() => setEQModalOpen(false)} />
+      <DevConnectScreen visible={isDevConnectVisible} onClose={() => setIsDevConnectVisible(false)} />
+    </SafeAreaView>
+  );
 };
 
+const ToolButton = ({
+  label,
+  Icon,
+  onPress,
+  disabled,
+  active,
+}: {
+  label: string;
+  Icon: React.ComponentType<{ size: number; color: string }>;
+  onPress: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) => (
+  <TouchableOpacity
+    style={[styles.toolButton, active && styles.toolButtonActive, disabled && styles.toolButtonDisabled]}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.82}
+  >
+    <Icon size={20} color={active ? COLORS.black : disabled ? COLORS.mutedText : COLORS.text} />
+    <Text style={[styles.toolLabel, active && styles.toolLabelActive, disabled && styles.toolLabelDisabled]} numberOfLines={1}>{label}</Text>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.background,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    content: {
-        paddingBottom: 100,
-    },
-    header: {
-        padding: 24,
-        alignItems: 'center',
-        marginTop: 40,
-    },
-    clock: {
-        fontFamily: 'PlayfairDisplay_400Regular',
-        fontSize: 48,
-        color: COLORS.text,
-    },
-    title: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 16,
-        color: COLORS.primary,
-        marginTop: 8,
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-    },
-    dialContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: 300,
-    },
-    dialRing: {
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-        borderWidth: 2,
-        borderColor: COLORS.surface,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    stationName: {
-        fontFamily: 'PlayfairDisplay_700Bold',
-        fontSize: 24,
-        color: COLORS.text,
-        textAlign: 'center',
-        marginBottom: 16,
-    },
-    timeZoneSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 16,
-    },
-    clockContainer: {
-        marginRight: 16,
-    },
-    timeZoneInfo: {
-        flex: 1,
-    },
-    timeZoneLabel: {
-        ...TYPOGRAPHY.caption,
-        color: COLORS.secondaryText,
-        marginBottom: 4,
-    },
-    timeZoneText: {
-        ...TYPOGRAPHY.body,
-        fontFamily: 'PlayfairDisplay_400Regular',
-        fontSize: 20,
-        color: COLORS.text,
-        marginBottom: 2,
-    },
-    timeZoneDetail: {
-        ...TYPOGRAPHY.caption,
-        color: COLORS.secondaryText,
-        fontSize: 10,
-    },
-    stationMeta: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    stationCountry: {
-        ...TYPOGRAPHY.caption,
-        color: COLORS.secondaryText,
-        marginRight: 8,
-    },
-    stationLanguage: {
-        ...TYPOGRAPHY.caption,
-        color: COLORS.primary,
-    },
-    controls: {
-        padding: 32,
-        alignItems: 'center',
-    },
-    playButton: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: COLORS.surface,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: COLORS.primary,
-    },
-    playButtonText: {
-        fontFamily: 'JetBrainsMono_400Regular',
-        fontSize: 12,
-        color: COLORS.primary,
-    },
-    stationsList: {
-        padding: 24,
-        flex: 1,
-    },
-    sectionTitle: {
-        fontFamily: 'JetBrainsMono_400Regular',
-        fontSize: 12,
-        textTransform: 'uppercase',
-        marginBottom: 16,
-    },
-    stationItem: {
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        marginBottom: 12,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    activeStationItem: {
-        borderColor: COLORS.primary,
-        borderWidth: 1,
-    },
-    stationInfo: {
-        flex: 1,
-        marginRight: 16,
-    },
-    stationItemText: {
-        fontFamily: 'Inter_500Medium',
-        fontSize: 16,
-        color: COLORS.text,
-        marginBottom: 4,
-    },
-    stationSubtext: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 12,
-        color: COLORS.secondaryText,
-    },
-    stationIndicators: {
-        width: 24,
-        alignItems: 'center',
-    },
-    loader: {
-        marginVertical: 40,
-    },
-    utilityButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.1)',
-        backgroundColor: COLORS.surface,
-    },
-    utilityButton: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 8,
-        minWidth: 60,
-    },
-    utilityIcon: {
-        fontSize: 24,
-        marginBottom: 4,
-    },
-    utilityLabel: {
-        ...TYPOGRAPHY.caption,
-        fontSize: 10,
-        color: COLORS.secondaryText,
-    },
-    // Week 11-12 Feature Styles
-    weekFeaturesContainer: {
-        marginTop: 20,
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: 'rgba(26, 31, 46, 0.8)',
-        borderRadius: 12,
-        marginHorizontal: 20,
-    },
-    weekFeaturesTitle: {
-        ...TYPOGRAPHY.caption,
-        fontSize: 11,
-        color: COLORS.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    weekFeaturesGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    featureButton: {
-        flex: 1,
-        minWidth: 80,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        backgroundColor: COLORS.surface,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    featureButtonActive: {
-        backgroundColor: 'rgba(245, 166, 35, 0.2)',
-        borderColor: COLORS.primary,
-    },
-    featureIcon: {
-        fontSize: 24,
-        marginBottom: 6,
-    },
-    featureLabel: {
-        ...TYPOGRAPHY.caption,
-        fontSize: 11,
-        color: COLORS.text,
-        textAlign: 'center',
-        marginBottom: 2,
-    },
-    featureSubtext: {
-        ...TYPOGRAPHY.caption,
-        fontSize: 9,
-        color: COLORS.secondaryText,
-        textAlign: 'center',
-    },
-    // Debugging Feature Styles
-    titleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 8,
-    },
-    devButton: {
-        marginLeft: 12,
-        padding: 6,
-        borderRadius: 20,
-        backgroundColor: COLORS.surface,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    devIcon: {
-        fontSize: 16,
-        color: COLORS.primary,
-    },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  kicker: {
+    ...TYPOGRAPHY.data,
+    textTransform: 'uppercase',
+    color: COLORS.primary,
+  },
+  screenTitle: {
+    ...TYPOGRAPHY.h1,
+    marginTop: 2,
+  },
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  nowPlaying: {
+    alignItems: 'center',
+    padding: 22,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  artwork: {
+    width: 190,
+    height: 190,
+    borderRadius: 32,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 22,
+  },
+  artworkOrbit: {
+    position: 'absolute',
+    width: 142,
+    height: 142,
+    borderRadius: 71,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+  },
+  activeTitle: {
+    ...TYPOGRAPHY.h1,
+    fontSize: 30,
+    lineHeight: 35,
+    textAlign: 'center',
+  },
+  activeMeta: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.secondaryText,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 5,
+    borderRadius: RADIUS.round,
+    backgroundColor: COLORS.surfaceMuted,
+    marginTop: 24,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+  },
+  progressLabels: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  progressLabel: {
+    ...TYPOGRAPHY.data,
+    color: COLORS.mutedText,
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 18,
+    marginTop: 22,
+  },
+  playButton: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryControl: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceMuted,
+  },
+  resumeToast: {
+    width: '100%',
+    marginTop: 18,
+    padding: 14,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primarySoft,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  resumeText: {
+    ...TYPOGRAPHY.body,
+    fontFamily: 'Inter_600SemiBold',
+    textAlign: 'center',
+  },
+  resumeActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
+  resumeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: RADIUS.round,
+    backgroundColor: COLORS.primary,
+  },
+  resumeButtonText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.black,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  resumeGhost: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+  },
+  resumeGhostText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.text,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  stationPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  stationPanelCopy: {
+    flex: 1,
+  },
+  panelLabel: {
+    ...TYPOGRAPHY.data,
+    color: COLORS.mutedText,
+    textTransform: 'uppercase',
+  },
+  panelTitle: {
+    ...TYPOGRAPHY.h2,
+    fontSize: 24,
+    marginTop: 4,
+  },
+  panelMeta: {
+    ...TYPOGRAPHY.caption,
+    marginBottom: 8,
+  },
+  toolGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 16,
+  },
+  toolButton: {
+    width: '23%',
+    minWidth: 78,
+    height: 74,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  toolButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  toolButtonDisabled: {
+    opacity: 0.45,
+  },
+  toolLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.secondaryText,
+    marginTop: 7,
+    textAlign: 'center',
+  },
+  toolLabelActive: {
+    color: COLORS.black,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  toolLabelDisabled: {
+    color: COLORS.mutedText,
+  },
+  sleepWrap: {
+    width: '23%',
+    minWidth: 78,
+    height: 74,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    ...TYPOGRAPHY.h2,
+    fontSize: 23,
+  },
+  sectionAction: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  loader: {
+    marginVertical: 32,
+  },
+  stationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 10,
+  },
+  activeStationItem: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+  },
+  stationIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stationCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  stationName: {
+    ...TYPOGRAPHY.body,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+  },
+  stationMeta: {
+    ...TYPOGRAPHY.caption,
+    marginTop: 3,
+  },
 });

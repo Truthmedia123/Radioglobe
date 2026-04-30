@@ -1,5 +1,6 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { usePlayerStore } from '../store/playerStore';
+import { usePodcastStore } from '../store/podcastStore';
 import { EventEmitter } from 'events';
 
 // Event names for audio service events
@@ -18,6 +19,7 @@ class AudioService extends EventEmitter {
   private bufferWatchdog: NodeJS.Timeout | null = null;
   private silentCounter = 0;
   private lastAmplitude = -60;
+  private lastProgressUpdate = 0;
 
   async init() {
     if (this.isInitialized) return;
@@ -183,6 +185,22 @@ class AudioService extends EventEmitter {
   }
 
   /**
+   * Seek to a specific position in milliseconds
+   */
+  async seekTo(positionMillis: number) {
+    if (!this.sound) return;
+    try {
+      const status = await this.sound.getStatusAsync();
+      if (status.isLoaded) {
+        await this.sound.setPositionAsync(positionMillis);
+        console.log(`Seeked to ${positionMillis}ms`);
+      }
+    } catch (error) {
+      console.error('Error seeking:', error);
+    }
+  }
+
+  /**
    * Skip forward 15 seconds
    */
   async skipForward() {
@@ -321,6 +339,20 @@ class AudioService extends EventEmitter {
           durationMillis: status.durationMillis,
           isBuffering: status.isBuffering,
         });
+
+        // Track podcast progress
+        const currentEpisode = usePlayerStore.getState().currentPodcastEpisode;
+        if (currentEpisode && status.durationMillis) {
+          const now = Date.now();
+          if (now - this.lastProgressUpdate > 5000) {
+            usePodcastStore.getState().updateProgress(
+              currentEpisode,
+              status.positionMillis,
+              status.durationMillis
+            );
+            this.lastProgressUpdate = now;
+          }
+        }
       }
     } else if (status.error) {
       console.error('Playback error: ', status.error);
