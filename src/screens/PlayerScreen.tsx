@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Bell, Bug, DownloadCloud, Mic2, Pause, Play, Radio, RotateCcw, RotateCw, Settings2, Share2, Users, Volume2 } from 'lucide-react-native';
+import { Bell, Bug, DownloadCloud, Mic2, Pause, Play, Radio, RotateCcw, RotateCw, Settings2, Share2, Users, Volume2, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { AUDIO_EVENTS, audioService } from '../services/audioService';
 import { AlarmModal } from '../components/AlarmModal';
@@ -17,6 +17,7 @@ import { ClockFace } from '../components/ClockFace';
 import { EQModal } from '../components/EQModal';
 import { QualityIndicator } from '../components/QualityIndicator';
 import { ScheduleRecordingModal } from '../components/ScheduleRecordingModal';
+import { StationInfoModal } from '../components/StationInfoModal';
 import { SleepTimerButton } from '../components/SleepTimerButton';
 import { SongIdentifier } from '../components/SongIdentifier';
 import { fetchTopStations, Station } from '../api/radioBrowser';
@@ -48,6 +49,7 @@ export const PlayerScreen: React.FC = () => {
   const [isRecordingClip, setIsRecordingClip] = useState(false);
   const [adBreakActive, setAdBreakActive] = useState(false);
   const [isDevConnectVisible, setIsDevConnectVisible] = useState(false);
+  const [isStationInfoOpen, setIsStationInfoOpen] = useState(false);
   const [showResumeToast, setShowResumeToast] = useState(false);
   const [resumePosition, setResumePosition] = useState(0);
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -197,7 +199,14 @@ export const PlayerScreen: React.FC = () => {
             <Radio size={54} color={COLORS.text} />
           </View>
 
-          <Text style={styles.activeTitle} numberOfLines={3}>{activeTitle}</Text>
+          <View style={styles.activeTitleContainer}>
+            <Text style={styles.activeTitle} numberOfLines={3}>{activeTitle}</Text>
+            {!currentPodcastEpisode && currentStation && (
+              <TouchableOpacity onPress={() => setIsStationInfoOpen(true)} accessibilityLabel="View station info" style={styles.infoIcon}>
+                <Info size={22} color={COLORS.secondaryText} strokeWidth={2} />
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.activeMeta} numberOfLines={1}>{activeMeta}</Text>
 
           <View style={styles.progressTrack}>
@@ -322,6 +331,7 @@ export const PlayerScreen: React.FC = () => {
       />
       <EQModal visible={isEQModalOpen} onClose={() => setEQModalOpen(false)} />
       <DevConnectScreen visible={isDevConnectVisible} onClose={() => setIsDevConnectVisible(false)} />
+      <StationInfoModal visible={isStationInfoOpen} onClose={() => setIsStationInfoOpen(false)} station={currentStation} />
     </SafeAreaView>
   );
 };
@@ -413,6 +423,17 @@ const styles = StyleSheet.create({
     borderRadius: 71,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.34)',
+  },
+  activeTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  infoIcon: {
+    padding: 4,
   },
   activeTitle: {
     ...TYPOGRAPHY.h1,

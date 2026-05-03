@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FlatList, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Download, Heart, History, Play, Radio } from 'lucide-react-native';
+import { Download, Heart, History, Play, Radio, Settings, Bell, Mic2, Users, ChevronRight } from 'lucide-react-native';
 import { audioService } from '../services/audioService';
 import { COLORS, RADIUS, TYPOGRAPHY } from '../constants/theme';
 import { useNavigationStore } from '../store/navigationStore';
 import { usePlayerStore } from '../store/playerStore';
 import { usePodcastStore } from '../store/podcastStore';
+import { SettingsScreen } from './SettingsScreen';
+import { AlarmListScreen } from './AlarmListScreen';
+import { RecordingListScreen } from './RecordingListScreen';
+import { ListeningRoomScreen } from './ListeningRoomScreen';
 
 const MOCK_FAVOURITES = [
   { stationuuid: '1', name: 'BBC Radio 1', country: 'United Kingdom', language: 'English' },
@@ -22,6 +26,11 @@ export const ArchiveScreen: React.FC = () => {
   const { currentStation, isPlaying, setCurrentStation } = usePlayerStore();
   const { setActiveTab } = useNavigationStore();
   const { episodeProgress, downloadedEpisodes, subscribedFeeds } = usePodcastStore();
+
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isAlarmsOpen, setAlarmsOpen] = useState(false);
+  const [isRecordingsOpen, setRecordingsOpen] = useState(false);
+  const [isRoomsOpen, setRoomsOpen] = useState(false);
 
   const continueListening = Object.values(episodeProgress)
     .sort((a, b) => new Date(b.lastPlayed).getTime() - new Date(a.lastPlayed).getTime())
@@ -79,6 +88,18 @@ export const ArchiveScreen: React.FC = () => {
           <StatCard label="Downloads" value={downloadedCount.toString()} Icon={Download} color={COLORS.warning} />
         </View>
 
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Library Tools</Text>
+          </View>
+          <View style={styles.toolsList}>
+            <ToolCard title="Settings" Icon={Settings} onPress={() => setSettingsOpen(true)} />
+            <ToolCard title="Alarms" Icon={Bell} onPress={() => setAlarmsOpen(true)} />
+            <ToolCard title="Recordings" Icon={Mic2} onPress={() => setRecordingsOpen(true)} />
+            <ToolCard title="Listening Rooms" Icon={Users} onPress={() => setRoomsOpen(true)} />
+          </View>
+        </View>
+
         {continueListening.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -133,9 +154,32 @@ export const ArchiveScreen: React.FC = () => {
           />
         </View>
       </ScrollView>
+
+      <SettingsScreen visible={isSettingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AlarmListScreen visible={isAlarmsOpen} onClose={() => setAlarmsOpen(false)} />
+      <RecordingListScreen visible={isRecordingsOpen} onClose={() => setRecordingsOpen(false)} />
+      <ListeningRoomScreen visible={isRoomsOpen} onClose={() => setRoomsOpen(false)} />
     </SafeAreaView>
   );
 };
+
+const ToolCard = ({
+  title,
+  Icon,
+  onPress,
+}: {
+  title: string;
+  Icon: React.ComponentType<{ size: number; color: string }>;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity style={styles.toolCard} onPress={onPress} activeOpacity={0.84}>
+    <View style={styles.toolCardIcon}>
+      <Icon size={20} color={COLORS.text} />
+    </View>
+    <Text style={styles.toolCardTitle}>{title}</Text>
+    <ChevronRight size={20} color={COLORS.secondaryText} />
+  </TouchableOpacity>
+);
 
 const StatCard = ({
   label,
@@ -197,6 +241,27 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...TYPOGRAPHY.caption,
+  },
+  toolsList: {
+    gap: 10,
+  },
+  toolCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  toolCardIcon: {
+    marginRight: 12,
+  },
+  toolCardTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: COLORS.text,
+    flex: 1,
   },
   section: {
     marginTop: 24,
